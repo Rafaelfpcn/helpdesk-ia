@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+pydantic[email]
+pydantic-settings
+email-validator
+sqlalchemy
+pytest
+httpx
+python-dotenv
+ruff
+pyjwt

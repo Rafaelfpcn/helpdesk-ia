@@ -1,0 +1,22 @@
+services:
+  api:
+    build: .
+    container_name: helpdesk-ia
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_NAME=HelpDesk IA
+      - APP_ENV=development
+      - DATABASE_URL=sqlite:////app/data/helpdesk.db
+      - AI_PROVIDER=mock
+      - AI_CONFIDENCE_THRESHOLD=0.70
+      - AI_FALLBACK_CATEGORY=nao_classificado
+      - AI_FALLBACK_PRIORITY=media
+      - LOG_LEVEL=INFO
+      - ALLOWED_ORIGINS=http://localhost:8000
+      - AUTH_REQUIRED=false
+    volumes:
+      - helpdesk_data:/app/data
+
+volumes:
+  helpdesk_data:

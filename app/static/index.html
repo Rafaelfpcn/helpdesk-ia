@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>HelpDesk IA</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <header>
+        <h1>HelpDesk IA</h1>
+        <p>Sistema de triagem de chamados de TI com IA responsável</p>
+    </header>
+
+    <nav>
+        <button data-view="dashboard" class="active">Dashboard</button>
+        <button data-view="new-ticket">Novo chamado</button>
+        <button data-view="tickets">Chamados</button>
+        <button data-view="login">Entrar</button>
+    </nav>
+
+    <main>
+        <div id="message" class="message" hidden></div>
+
+        <section id="view-dashboard">
+            <div class="section-header">
+                <h2>Dashboard</h2>
+                <button id="reload-dashboard" type="button">Recarregar</button>
+            </div>
+
+            <div id="metric-cards" class="cards"></div>
+
+            <div class="grid">
+                <div class="panel">
+                    <h3>Chamados por status</h3>
+                    <div id="tickets-by-status"></div>
+                </div>
+
+                <div class="panel">
+                    <h3>Chamados por categoria</h3>
+                    <div id="tickets-by-category"></div>
+                </div>
+
+                <div class="panel">
+                    <h3>Chamados por prioridade</h3>
+                    <div id="tickets-by-priority"></div>
+                </div>
+
+                <div class="panel">
+                    <h3>Sugestões por decisão da IA</h3>
+                    <div id="ai-by-decision"></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="view-new-ticket" hidden>
+            <h2>Novo chamado</h2>
+
+            <form id="new-ticket-form" class="form">
+                <label>
+                    Nome do solicitante
+                    <input
+                        type="text"
+                        name="requester_name"
+                        minlength="3"
+                        maxlength="120"
+                        required
+                        placeholder="Ex: Maria Silva"
+                    >
+                </label>
+
+                <label>
+                    E-mail do solicitante
+                    <input
+                        type="email"
+                        name="requester_email"
+                        required
+                        placeholder="Ex: maria.silva@example.com"
+                    >
+                </label>
+
+                <label>
+                    Título
+                    <input
+                        type="text"
+                        name="title"
+                        minlength="5"
+                        maxlength="180"
+                        required
+                        placeholder="Ex: Sistema financeiro fora do ar"
+                    >
+                </label>
+
+                <label>
+                    Descrição
+                    <textarea
+                        name="description"
+                        minlength="10"
+                        maxlength="4000"
+                        required
+                        rows="6"
+                        placeholder="Descreva o problema com detalhes. Não use dados reais sensíveis."
+                    ></textarea>
+                </label>
+
+                <label>
+                    Categoria inicial opcional
+                    <input
+                        type="text"
+                        name="category"
+                        maxlength="80"
+                        placeholder="Ex: Infraestrutura"
+                    >
+                </label>
+
+                <label>
+                    Prioridade opcional
+                    <select name="priority">
+                        <option value="">Deixar a IA sugerir</option>
+                        <option value="baixa">Baixa</option>
+                        <option value="media">Média</option>
+                        <option value="alta">Alta</option>
+                        <option value="critica">Crítica</option>
+                    </select>
+                </label>
+
+                <label>
+                    Origem
+                    <select name="source">
+                        <option value="portal" selected>Portal</option>
+                        <option value="email">E-mail</option>
+                        <option value="chat">Chat</option>
+                        <option value="telefone">Telefone</option>
+                    </select>
+                </label>
+
+                <button type="submit">Abrir chamado</button>
+            </form>
+        </section>
+
+        <section id="view-tickets" hidden>
+            <div class="section-header">
+                <h2>Chamados</h2>
+            </div>
+
+            <div class="filters">
+                <select id="filter-status">
+                    <option value="">Todos os status</option>
+                    <option value="aberto">Aberto</option>
+                    <option value="em_analise">Em análise</option>
+                    <option value="aguardando">Aguardando</option>
+                    <option value="resolvido">Resolvido</option>
+                    <option value="fechado">Fechado</option>
+                </select>
+
+                <select id="filter-priority">
+                    <option value="">Todas as prioridades</option>
+                    <option value="baixa">Baixa</option>
+                    <option value="media">Média</option>
+                    <option value="alta">Alta</option>
+                    <option value="critica">Crítica</option>
+                </select>
+
+                <input
+                    type="text"
+                    id="filter-category"
+                    placeholder="Categoria"
+                >
+
+                <button id="load-tickets-btn" type="button">Filtrar</button>
+            </div>
+
+            <div id="tickets-table"></div>
+        </section>
+
+        <section id="view-ticket-detail" hidden>
+            <button id="back-to-tickets" type="button">Voltar para chamados</button>
+            <div id="ticket-detail"></div>
+        </section>
+
+        <section id="view-login" hidden>
+            <h2>Autenticação</h2>
+
+            <form id="login-form" class="form">
+                <label>
+                    E-mail
+                    <input
+                        type="email"
+                        name="email"
+                        required
+                        placeholder="demo@example.com"
+                    >
+                </label>
+
+                <label>
+                    Senha
+                    <input
+                        type="password"
+                        name="password"
+                        required
+                        placeholder="demo123"
+                    >
+                </label>
+
+                <div class="filters">
+                    <button type="submit">Entrar</button>
+                    <button type="button" id="register-btn">Criar conta</button>
+                    <button type="button" id="logout-btn">Sair</button>
+                </div>
+            </form>
+
+            <p style="margin-top: 15px; color: #9ca3af;">
+                Usuário criado pelo seed:
+                <strong style="color: #60a5fa;">demo@example.com</strong> /
+                <strong style="color: #60a5fa;">demo123</strong>
+            </p>
+
+            <div id="auth-status" class="panel" style="margin-top: 15px;"></div>
+        </section>
+    </main>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
