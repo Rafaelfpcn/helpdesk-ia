@@ -32,6 +32,22 @@ O **HelpDesk IA** automatiza a triagem inicial analisando o texto do chamado em 
 
 ---
 
+## 📸 Telas do Sistema
+
+### Dashboard com Métricas de IA e Atendimento
+![Dashboard](docs/screenshots/dashboard.png)
+
+### Gestão e Listagem de Chamados
+![Chamados](docs/screenshots/chamados.png)
+
+### Detalhes do Chamado & Auditoria de IA (Human-in-the-Loop)
+![Detalhes do Chamado](docs/screenshots/ticket_detail.png)
+
+### Abertura de Novo Chamado
+![Novo Chamado](docs/screenshots/novo_chamado.png)
+
+---
+
 ## 🛠️ Tecnologias Utilizadas
 
 | Componente | Tecnologia | Finalidade |

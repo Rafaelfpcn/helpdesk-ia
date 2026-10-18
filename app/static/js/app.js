@@ -89,7 +89,17 @@ document.addEventListener("DOMContentLoaded", () => {
         .addEventListener("click", logout);
 
     loadAuthStatus();
-    showView("dashboard");
+    function navigate() {
+        const hash = window.location.hash.replace("#", "") || "dashboard";
+        if (hash.startsWith("ticket/")) {
+            const ticketId = hash.split("/")[1];
+            openTicket(ticketId);
+        } else {
+            showView(hash);
+        }
+    }
+    navigate();
+    window.addEventListener("hashchange", navigate);
 });
 
 function showView(view) {
