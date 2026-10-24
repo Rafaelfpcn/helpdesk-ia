@@ -1,245 +1,161 @@
-"""
-Seed de dados fictícios para demonstração do HelpDesk IA.
-Usa exclusivamente dados inventados. Não há dados reais de pessoas ou empresas.
+"""Popula o banco com chamados FICTÍCIOS para demonstração.
 
 Uso:
-    python scripts/seed.py [--reset]
+  python -m scripts.seed         # só se o banco estiver vazio
+  python -m scripts.seed --reset # apaga os chamados e recria
 """
 
 import argparse
-import sys
+import json
+import random
+import unicodedata
+from datetime import timedelta
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-sys.path.append(str(ROOT))
+from sqlalchemy import delete, func, select
+from sqlalchemy.orm import Session
 
-from app import models  # noqa: E402
-from app.core.config import settings  # noqa: E402
-from app.db.base import Base, SessionLocal, engine  # noqa: E402
-from app.schemas import AiReviewCreate, TicketCreate, TicketUpdate  # noqa: E402
-from app.services.ai import AiService, MockAiProvider  # noqa: E402
-from app.services.metrics_service import get_metrics  # noqa: E402
-from app.services.security import hash_password  # noqa: E402
-from app.services.ticket_service import ReviewService, TicketService  # noqa: E402
+from app.database import Base, SessionLocal, engine
+from app.enums import Category, EventType, Priority, Source, Status
+from app.models import AISuggestion, AuditLog, Ticket
+from app.schemas.review import ReviewChange, ReviewConfirm
+from app.schemas.ticket import TicketCreate
+from app.services import review_service, ticket_service
+from app.services.ai.base import AIProvider
+from app.services.ai.factory import get_ai_provider
+from app.utils import utcnow
 
-FAKE_TICKETS = [
-    {
-        "requester_name": "Maria Alves",
-        "requester_email": "maria.alves@example.com",
-        "title": "Servidor principal fora do ar",
-        "description": (
-            "O servidor principal está fora do ar e todos os usuários do financeiro "
-            "estão sem acesso ao sistema. Não conseguimos emitir notas."
-        ),
-        "source": "portal",
-        "review": {"accepted": True, "notes": "Classificação correta."},
-        "status": "em_analise",
-    },
-    {
-        "requester_name": "João Pereira",
-        "requester_email": "joao.pereira@example.com",
-        "title": "Senha bloqueada no portal",
-        "description": "Não consigo fazer login no portal corporativo. Minha senha foi bloqueada.",
-        "source": "telefone",
-        "review": {"accepted": True},
-        "status": "resolvido",
-    },
-    {
-        "requester_name": "Ana Costa",
-        "requester_email": "ana.costa@example.com",
-        "title": "Impressora do administrativo não imprime",
-        "description": "A impressora do setor administrativo não imprime documentos desde a manhã.",
-        "source": "portal",
-        "review": {"accepted": True},
-        "status": "resolvido",
-    },
-    {
-        "requester_name": "Carlos Lima",
-        "requester_email": "carlos.lima@example.com",
-        "title": "Erro ao salvar pedido no ERP",
-        "description": "O ERP apresenta erro ao salvar pedidos no módulo comercial. Bug recorrente.",
-        "source": "email",
-        "review": {
-            "accepted": False,
-            "corrected_priority": "critica",
-            "notes": "Impacta faturamento, subir para crítica.",
-        },
-        "status": "em_analise",
-    },
-    {
-        "requester_name": "Fernanda Souza",
-        "requester_email": "fernanda.souza@example.com",
-        "title": "Dúvida sobre instalação da VPN",
-        "description": "Como fazer para instalar a VPN no notebook corporativo?",
-        "source": "chat",
-        "review": {"accepted": True},
-    },
-    {
-        "requester_name": "Ricardo Nunes",
-        "requester_email": "ricardo.nunes@example.com",
-        "title": "Preciso de ajuda",
-        "description": "Preciso de ajuda com uma coisa aqui no setor, mas não sei descrever direito o que houve.",
-        "source": "portal",
-        "review": {
-            "accepted": False,
-            "corrected_category": "Solicitação",
-            "corrected_priority": "baixa",
-            "notes": "Descrição insuficiente, IA não conseguiu classificar.",
-        },
-    },
-    {
-        "requester_name": "Beatriz Ramos",
-        "requester_email": "beatriz.ramos@example.com",
-        "title": "Internet lenta no setor de compras",
-        "description": "A internet está lenta no setor de compras, a rede está instável desde ontem.",
-        "source": "portal",
-        "review": {"accepted": True},
-        "status": "aguardando",
-    },
-    {
-        "requester_name": "Diego Martins",
-        "requester_email": "diego.martins@example.com",
-        "title": "Mouse com defeito",
-        "description": "O mouse do meu notebook está com defeito e não responde corretamente.",
-        "source": "telefone",
-        "review": {"accepted": True},
-        "status": "fechado",
-    },
-    {
-        "requester_name": "Patrícia Gomes",
-        "requester_email": "patricia.gomes@example.com",
-        "title": "Acesso bloqueado para todos os usuários",
-        "description": "Todos os usuários estão sem acesso ao portal corporativo. Urgente, equipe paralisada.",
-        "source": "portal",
-        "review": {"accepted": True, "notes": "Confirmado como incidente geral."},
-        "status": "em_analise",
-    },
-    {
-        "requester_name": "Lucas Ferreira",
-        "requester_email": "lucas.ferreira@example.com",
-        "title": "Monitor sem sinal",
-        "description": "O monitor do meu posto de trabalho está sem sinal e o teclado também não funciona.",
-        "source": "chat",
-        "review": {"accepted": True},
-        "status": "aberto",
-    },
-    {
-        "requester_name": "Sandra Melo",
-        "requester_email": "sandra.melo@example.com",
-        "title": "Solicitação de novo acesso ao sistema financeiro",
-        "description": "Solicito acesso para a nova colaboradora do financeiro ao sistema de contas a pagar.",
-        "source": "email",
-        "review": {"accepted": True},
-    },
-    {
-        "requester_name": "Otávio Ribeiro",
-        "requester_email": "otavio.ribeiro@example.com",
-        "title": "Barulho estranho na copa",
-        "description": "Tem um barulho estranho na copa perto da geladeira, não parece ser de TI.",
-        "source": "portal",
-        "review": {
-            "accepted": False,
-            "corrected_category": "Infraestrutura",
-            "corrected_priority": "baixa",
-            "notes": "Redirecionado para facilities, registrado como Outros.",
-        },
-    },
+DATA_FILE = Path(__file__).resolve().parent.parent / "data" / "seed_tickets.json"
+REVIEWERS = ["Carlos Atendente Teste", "Marina Suporte Teste"]
+MIN_AGE_HOURS, MAX_AGE_HOURS = 2, 14 * 24  # chamados abertos entre 2 horas e 14 dias atrás
+
+# (limite sorteado, caminho de status): define quanto cada chamado "avança" na fila
+STATUS_PATHS = [
+    (0.35, []),
+    (0.60, [Status.em_atendimento]),
+    (0.90, [Status.em_atendimento, Status.resolvido]),
+    (1.00, [Status.em_atendimento, Status.resolvido, Status.fechado]),
 ]
 
 
-def run(reset: bool = False) -> None:
-    if reset:
-        Base.metadata.drop_all(bind=engine)
-        print("Banco de dados resetado com sucesso.")
+def load_entries() -> list[dict]:
+    return json.loads(DATA_FILE.read_text(encoding="utf-8"))
+
+
+def _email_from_name(name: str) -> str:
+    """'Ana Souza Teste' -> 'ana.souza@exemplo.com' (domínio reservado a exemplos)."""
+    ascii_name = "".join(
+        ch for ch in unicodedata.normalize("NFD", name.lower()) if unicodedata.category(ch) != "Mn"
+    )
+    return ".".join(ascii_name.split()[:2]) + "@exemplo.com"
+
+
+def _simulate_review(db: Session, ticket: Ticket, reviewer: str, rng: random.Random) -> None:
+    suggestion = ticket.suggestion
+    if suggestion is None:
+        return
+    roll = rng.random()
+    if roll < 0.25:
+        return  # 25% ficam pendentes
+    if roll < 0.70:
+        review_service.confirm_suggestion(db, ticket.id, ReviewConfirm(reviewed_by=reviewer))
+        return
+
+    # 30%: o atendente discorda da IA (a categoria SEMPRE muda, então a revisão é válida)
+    category = rng.choice([c for c in Category if c.value != suggestion.suggested_category])
+    priority = (
+        Priority(suggestion.suggested_priority)
+        if rng.random() < 0.5
+        else rng.choice(list(Priority))
+    )
+    review_service.change_suggestion(
+        db,
+        ticket.id,
+        ReviewChange(
+            reviewed_by=reviewer,
+            category=category,
+            priority=priority,
+            note="Ajuste feito na triagem (dado de demonstração).",
+        ),
+    )
+
+
+def _simulate_status(db: Session, ticket: Ticket, reviewer: str, rng: random.Random) -> None:
+    roll = rng.random()
+    for limit, path in STATUS_PATHS:
+        if roll < limit:
+            for status in path:
+                ticket_service.update_status(db, ticket.id, status, reviewer)
+            return
+
+
+def _backdate(db: Session, ticket: Ticket, age_hours: int, rng: random.Random) -> None:
+    """Move o histórico do chamado para o passado, mantendo a ordem dos eventos.
+
+    Sem isso, todos os chamados teriam 'agora' como data e as métricas de tempo ficariam zeradas.
+    """
+    ticket.created_at = utcnow() - timedelta(hours=age_hours)
+    logs = list(ticket.logs)
+    step_max = max(2, int(age_hours * 60 / (len(logs) + 1)))  # garante que nada cai no futuro
+    cursor = ticket.created_at
+    for position, log in enumerate(logs):
+        if position > 0:
+            cursor += timedelta(minutes=rng.randint(1, step_max))
+        log.created_at = cursor
+        details = json.loads(log.details)
+        if log.event_type == EventType.status_changed.value and details.get("to") == Status.resolvido.value:
+            ticket.resolved_at = cursor
+        if ticket.suggestion and log.event_type in (
+            EventType.suggestion_confirmed.value,
+            EventType.suggestion_changed.value,
+        ):
+            ticket.suggestion.reviewed_at = cursor
+
+    if ticket.suggestion:
+        ticket.suggestion.created_at = ticket.created_at
+    ticket.updated_at = cursor
+    db.commit()
+
+
+def run_seed(db: Session, provider: AIProvider, entries: list[dict], seed: int = 42) -> int:
+    """Cria os chamados passando pelo fluxo REAL (validação, sanitizer, IA, revisão, status)."""
+    rng = random.Random(seed)  # semente fixa: todo mundo gera o mesmo dashboard
+    for index, entry in enumerate(entries):
+        data = TicketCreate(
+            **entry,
+            requester_email=_email_from_name(entry["requester_name"]),
+            source=Source.seed,
+        )
+        ticket = ticket_service.create_ticket(db, data, provider)
+        reviewer = REVIEWERS[index % len(REVIEWERS)]
+        _simulate_review(db, ticket, reviewer, rng)
+        _simulate_status(db, ticket, reviewer, rng)
+        _backdate(db, ticket, rng.randint(MIN_AGE_HOURS, MAX_AGE_HOURS), rng)
+    return len(entries)
+
+
+def _wipe(db: Session) -> None:
+    for model in (AuditLog, AISuggestion, Ticket):  # filhos antes do pai
+        db.execute(delete(model))
+    db.commit()
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Popula o banco com chamados fictícios.")
+    parser.add_argument("--reset", action="store_true", help="apaga todos os chamados antes de popular")
+    args = parser.parse_args()
 
     Base.metadata.create_all(bind=engine)
+    with SessionLocal() as db:
+        if args.reset:
+            _wipe(db)
+        elif db.scalar(select(func.count()).select_from(Ticket)):
+            print("O banco já tem chamados. Use --reset para recriar.")
+            return
 
-    db = SessionLocal()
-
-    # Criação do usuário demo
-    demo_user = (
-        db.query(models.User)
-        .filter(models.User.email == "demo@example.com")
-        .first()
-    )
-
-    if not demo_user:
-        demo_user = models.User(
-            name="Demo User",
-            email="demo@example.com",
-            hashed_password=hash_password("demo123"),
-            role="admin",
-            is_active=True,
-        )
-        db.add(demo_user)
-        db.commit()
-        print("Usuário demo criado: demo@example.com / demo123")
-
-    ai_service = AiService(
-        provider=MockAiProvider(),
-        provider_name=settings.ai_provider,
-        prompt_version="v1.0-mock",
-        confidence_threshold=settings.ai_confidence_threshold,
-        fallback_category=settings.ai_fallback_category,
-        fallback_priority=settings.ai_fallback_priority,
-    )
-
-    ticket_service = TicketService(db=db, ai_service=ai_service)
-    review_service = ReviewService(db=db)
-
-    created = 0
-
-    for item in FAKE_TICKETS:
-        payload = TicketCreate(
-            requester_name=item["requester_name"],
-            requester_email=item["requester_email"],
-            title=item["title"],
-            description=item["description"],
-            category=item.get("category"),
-            priority=item.get("priority"),
-            source=item.get("source", "portal"),
-        )
-
-        ticket, suggestion = ticket_service.create_ticket(payload)
-
-        review = item.get("review")
-        if review:
-            review_service.review_suggestion(
-                suggestion.id,
-                AiReviewCreate(
-                    reviewer_name=review.get("reviewer_name", "Atendente N1"),
-                    accepted=review.get("accepted", True),
-                    corrected_category=review.get("corrected_category"),
-                    corrected_priority=review.get("corrected_priority"),
-                    notes=review.get("notes"),
-                ),
-            )
-
-        status = item.get("status")
-        if status:
-            ticket_service.update_ticket(ticket.id, TicketUpdate(status=status))
-
-        created += 1
-
-    metrics = get_metrics(db)
-    db.close()
-
-    print(f"Seed concluído: {created} chamados criados com sugestões de IA.")
-    print()
-    print("Métricas resultantes:")
-    print(f"  Total de chamados ............ {metrics['tickets_total']}")
-    print(f"  Sugestões de IA .............. {metrics['ai_suggestions_total']}")
-    print(f"  Revisões humanas ............. {metrics['ai_reviews_total']}")
-    print(f"  Sugestões aceitas ............ {metrics['ai_accepted_total']}")
-    print(f"  Sugestões corrigidas ......... {metrics['ai_corrected_total']}")
-    print(f"  Confiança média da IA ........ {metrics['ai_avg_confidence']}")
-    print(f"  Latência média da IA (ms) .... {metrics['ai_avg_latency_ms']}")
-    print(f"  Decisões por tipo ............ {metrics['ai_by_decision']}")
+        total = run_seed(db, get_ai_provider(), load_entries())
+        print(f"{total} chamados fictícios criados com sucesso. Abra /dashboard para ver as métricas!")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Popular banco com dados fictícios.")
-    parser.add_argument("--reset", action="store_true", help="Recria as tabelas do zero.")
-    args = parser.parse_args()
-
-    run(reset=args.reset)
+    main()

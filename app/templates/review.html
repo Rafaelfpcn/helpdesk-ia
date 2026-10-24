@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="breadcrumb">
+  <a href="/tickets">← Voltar para lista de chamados</a>
+</div>
+
+<div class="page-header">
+  <div>
+    <div class="ticket-header-top">
+      <span class="ticket-id-tag">Chamado #{{ ticket.id }}</span>
+      <span class="badge badge-status badge-status-{{ ticket.status }}">{{ ticket.status | label }}</span>
+      <span class="badge badge-priority badge-priority-{{ ticket.priority }}">{{ ticket.priority | label }}</span>
+      <span class="badge badge-category">{{ ticket.category | label }}</span>
+    </div>
+    <h1 class="ticket-title">{{ ticket.title }}</h1>
+    <p class="subtitle muted">
+      Aberto por <strong>{{ ticket.requester_name }}</strong> ({{ ticket.requester_email }}) em {{ ticket.created_at | datetime }} via {{ ticket.source | upper }}
+      {% if ticket.resolved_at %} • Resolvido em {{ ticket.resolved_at | datetime }}{% endif %}
+    </p>
+  </div>
+
+  <div class="header-actions">
+    <div class="status-action-box">
+      <span class="status-action-label">Mudar Status:</span>
+      <div class="button-group">
+        {% if ticket.status == 'aberto' %}
+          <button type="button" class="btn btn-sm btn-primary" onclick="updateTicketStatus({{ ticket.id }}, 'em_atendimento')">Iniciar Atendimento</button>
+          <button type="button" class="btn btn-sm btn-outline-danger" onclick="updateTicketStatus({{ ticket.id }}, 'fechado')">Fechar</button>
+        {% elif ticket.status == 'em_atendimento' %}
+          <button type="button" class="btn btn-sm btn-success" onclick="updateTicketStatus({{ ticket.id }}, 'resolvido')">Marcar como Resolvido</button>
+          <button type="button" class="btn btn-sm btn-secondary" onclick="updateTicketStatus({{ ticket.id }}, 'aberto')">Retornar para Aberto</button>
+        {% elif ticket.status == 'resolvido' %}
+          <button type="button" class="btn btn-sm btn-secondary" onclick="updateTicketStatus({{ ticket.id }}, 'em_atendimento')">Reabrir Atendimento</button>
+          <button type="button" class="btn btn-sm btn-outline-dark" onclick="updateTicketStatus({{ ticket.id }}, 'fechado')">Fechar Chamado</button>
+        {% else %}
+          <span class="muted font-sm">Chamado encerrado (sem transições)</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="grid-layout ticket-layout">
+  <!-- Coluna Principal: Conteúdo do chamado e logs -->
+  <div class="ticket-main-col">
+    <div class="card ticket-desc-card">
+      <h2>Descrição do Solicitante</h2>
+      <div class="ticket-description-content">
+        {{ ticket.description | e }}
+      </div>
+      <div class="ticket-meta-footer muted">
+        <span>Categoria informada inicialmente: <strong>{{ ticket.initial_category | label }}</strong></span>
+        <span>Última atualização: {{ ticket.updated_at | datetime }}</span>
+      </div>
+    </div>
+
+    <!-- Histórico de Auditoria / Logs -->
+    <div class="card audit-card">
+      <h3>📜 Trilha de Auditoria & Rastreabilidade</h3>
+      <p class="muted font-sm">Histórico imutável de eventos gravados para conformidade e governança de IA.</p>
+      <div class="timeline">
+        {% for log in ticket.logs %}
+          <div class="timeline-item">
+            <div class="timeline-dot"></div>
+            <div class="timeline-content">
+              <div class="timeline-header">
+                <strong>{{ log.event_type | label }}</strong>
+                <span class="timeline-actor badge badge-subtle">Ator: {{ log.actor }}</span>
+                <span class="timeline-date muted">{{ log.created_at | datetime }}</span>
+              </div>
+              <div class="timeline-details">
+                <code>{{ log.details }}</code>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Coluna Lateral: Parecer da IA e Revisão Humana -->
+  <aside class="ticket-sidebar-col">
+    {% if ticket.suggestion %}
+      <div class="card ai-card {% if ticket.suggestion.review_status == 'pendente' %}ai-card-pending{% endif %}">
+        <div class="ai-card-header">
+          <div class="ai-title-wrap">
+            <span class="ai-badge">IA</span>
+            <h3>Sugestão da IA (Triagem)</h3>
+          </div>
+          <span class="badge badge-review badge-review-{{ ticket.suggestion.review_status }}">
+            {{ ticket.suggestion.review_status | label }}
+          </span>
+        </div>
+
+        <div class="alert alert-warning ai-notice-alert">
+          ℹ️ {{ ticket.suggestion.notice }}
+        </div>
+
+        <div class="ai-metrics-grid">
+          <div class="ai-metric-item">
+            <span class="ai-metric-label">Categoria Sugerida</span>
+            <span class="ai-metric-val">{{ ticket.suggestion.suggested_category | label }}</span>
+          </div>
+          <div class="ai-metric-item">
+            <span class="ai-metric-label">Prioridade Sugerida</span>
+            <span class="ai-metric-val badge-priority-{{ ticket.suggestion.suggested_priority }}">{{ ticket.suggestion.suggested_priority | label }}</span>
+          </div>
+          <div class="ai-metric-item">
+            <span class="ai-metric-label">Nível de Urgência</span>
+            <span class="ai-metric-val">{{ ticket.suggestion.urgency_level | label }}</span>
+          </div>
+          <div class="ai-metric-item">
+            <span class="ai-metric-label">Confiança da IA</span>
+            <span class="ai-metric-val">{{ ticket.suggestion.confidence | pct }}</span>
+          </div>
+        </div>
+
+        <div class="ai-field">
+          <strong>Resumo Gerado:</strong>
+          <p class="ai-box-text">{{ ticket.suggestion.summary }}</p>
+        </div>
+
+        <div class="ai-field">
+          <strong>Ação Inicial Recomendada:</strong>
+          <p class="ai-box-text">{{ ticket.suggestion.initial_action }}</p>
+        </div>
+
+        <!-- Se estiver pendente, exibe o painel de revisão humana -->
+        {% if ticket.suggestion.review_status == 'pendente' %}
+          <hr class="divider">
+          <div class="review-action-panel">
+            <h4>👨‍💼 Revisão Humana Obrigatória</h4>
+            <p class="font-sm muted">Como atendente de TI, confirme se a análise da IA está adequada ou aplique a classificação correta.</p>
+
+            <div class="review-tabs">
+              <button type="button" class="btn btn-success btn-block" onclick="toggleReviewMode('confirm')">
+                ✅ Confirmar Análise da IA
+              </button>
+              <button type="button" class="btn btn-secondary btn-block" onclick="toggleReviewMode('change')">
+                ✏️ Corrigir Classificação
+              </button>
+            </div>
+
+            <!-- Form Confirmação -->
+            <form id="confirmForm" class="review-subform" style="display: none;" onsubmit="handleConfirmReview(event, {{ ticket.id }})">
+              <div class="form-group">
+                <label for="conf_reviewer">Nome do Atendente *</label>
+                <input type="text" id="conf_reviewer" required minlength="2" maxlength="100" placeholder="Ex.: Carlos Atendente Teste">
+              </div>
+              <div class="form-group">
+                <label for="conf_note">Justificativa / Observação (opcional)</label>
+                <input type="text" id="conf_note" maxlength="500" placeholder="Ex.: Concordo com a prioridade">
+              </div>
+              <button type="submit" class="btn btn-success btn-sm">Confirmar e Aplicar ao Chamado</button>
+            </form>
+
+            <!-- Form Alteração -->
+            <form id="changeForm" class="review-subform" style="display: none;" onsubmit="handleChangeReview(event, {{ ticket.id }})">
+              <div class="form-group">
+                <label for="chg_reviewer">Nome do Atendente *</label>
+                <input type="text" id="chg_reviewer" required minlength="2" maxlength="100" placeholder="Ex.: Carlos Atendente Teste">
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="chg_category">Nova Categoria *</label>
+                  <select id="chg_category" required>
+                    {% for cat in categories %}
+                      <option value="{{ cat.value }}" {% if cat.value == ticket.suggestion.suggested_category %}selected{% endif %}>
+                        {{ cat.value | label }}
+                      </option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="chg_priority">Nova Prioridade *</label>
+                  <select id="chg_priority" required>
+                    {% for pr in priorities %}
+                      <option value="{{ pr.value }}" {% if pr.value == ticket.suggestion.suggested_priority %}selected{% endif %}>
+                        {{ pr.value | label }}
+                      </option>
+                    {% endfor %}
+                  </select>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="chg_note">Motivo da Alteração (opcional)</label>
+                <input type="text" id="chg_note" maxlength="500" placeholder="Ex.: Trata-se de problema físico no cabo">
+              </div>
+              <button type="submit" class="btn btn-warning btn-sm">Salvar Correção Manual</button>
+            </form>
+          </div>
+        {% else %}
+          <!-- Já foi revisado -->
+          <div class="review-completed-box">
+            <h4>Decisão Humana Registrada</h4>
+            <dl class="meta-dl">
+              <dt>Status da Revisão:</dt>
+              <dd><strong>{{ ticket.suggestion.review_status | label }}</strong></dd>
+              <dt>Atendente:</dt>
+              <dd>{{ ticket.suggestion.reviewed_by or '—' }}</dd>
+              <dt>Categoria Final:</dt>
+              <dd>{{ ticket.suggestion.final_category | label }}</dd>
+              <dt>Prioridade Final:</dt>
+              <dd>{{ ticket.suggestion.final_priority | label }}</dd>
+              {% if ticket.suggestion.review_note %}
+                <dt>Nota:</dt>
+                <dd><em>"{{ ticket.suggestion.review_note }}"</em></dd>
+              {% endif %}
+              <dt>Data da Revisão:</dt>
+              <dd class="muted">{{ ticket.suggestion.reviewed_at | datetime }}</dd>
+            </dl>
+          </div>
+        {% endif %}
+      </div>
+    {% else %}
+      <div class="card">
+        <h3>Sugestão da IA Indisponível</h3>
+        <p class="muted">A triagem automática falhou ou não foi executada para este chamado. O sistema manteve a prioridade padrão por segurança operacional.</p>
+      </div>
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}

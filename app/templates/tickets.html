@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Central de Chamados de TI</h1>
+    <p class="subtitle">Lista consolidada de chamados, status do ciclo de vida e estado da revisão de IA.</p>
+  </div>
+  <a href="/" class="btn btn-primary">➕ Novo Chamado</a>
+</div>
+
+<div class="card filter-card">
+  <form method="GET" action="/tickets" class="filters-form">
+    <div class="filter-group">
+      <label for="status">Status:</label>
+      <select name="status" id="status" onchange="this.form.submit()">
+        <option value="">Todos os status</option>
+        {% for st in statuses %}
+          <option value="{{ st.value }}" {% if selected_status == st.value %}selected{% endif %}>
+            {{ st.value | label }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label for="category">Categoria:</label>
+      <select name="category" id="category" onchange="this.form.submit()">
+        <option value="">Todas as categorias</option>
+        {% for cat in categories %}
+          <option value="{{ cat.value }}" {% if selected_category == cat.value %}selected{% endif %}>
+            {{ cat.value | label }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label for="priority">Prioridade:</label>
+      <select name="priority" id="priority" onchange="this.form.submit()">
+        <option value="">Todas as prioridades</option>
+        {% for pr in priorities %}
+          <option value="{{ pr.value }}" {% if selected_priority == pr.value %}selected{% endif %}>
+            {{ pr.value | label }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    {% if selected_status or selected_category or selected_priority %}
+      <div class="filter-reset">
+        <a href="/tickets" class="btn btn-secondary btn-sm">Limpar Filtros</a>
+      </div>
+    {% endif %}
+  </form>
+</div>
+
+<div class="card table-card">
+  {% if tickets %}
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Título & Solicitante</th>
+            <th>Categoria Oficial</th>
+            <th>Prioridade</th>
+            <th>Status</th>
+            <th>Triagem IA</th>
+            <th>Abertura</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in tickets %}
+            <tr>
+              <td class="cell-id">#{{ t.id }}</td>
+              <td class="cell-main">
+                <a href="/tickets/{{ t.id }}" class="ticket-link">
+                  <strong>{{ t.title }}</strong>
+                </a>
+                <div class="cell-sub muted">{{ t.requester_name }} • {{ t.requester_email }}</div>
+              </td>
+              <td>
+                <span class="badge badge-category">{{ t.category | label }}</span>
+                {% if t.initial_category != t.category %}
+                  <span class="badge badge-subtle" title="Informado inicialmente pelo usuário">Inicial: {{ t.initial_category | label }}</span>
+                {% endif %}
+              </td>
+              <td>
+                <span class="badge badge-priority badge-priority-{{ t.priority }}">
+                  {{ t.priority | label }}
+                </span>
+              </td>
+              <td>
+                <span class="badge badge-status badge-status-{{ t.status }}">
+                  {{ t.status | label }}
+                </span>
+              </td>
+              <td>
+                {% if t.suggestion %}
+                  <span class="badge badge-review badge-review-{{ t.suggestion.review_status }}">
+                    {% if t.suggestion.review_status == 'pendente' %}⏳ Pendente{% elif t.suggestion.review_status == 'confirmada' %}✅ Confirmada{% else %}✏️ Alterada{% endif %}
+                  </span>
+                  <div class="cell-sub muted">Confiança: {{ t.suggestion.confidence | pct }}</div>
+                {% else %}
+                  <span class="badge badge-neutral">Sem Sugestão</span>
+                {% endif %}
+              </td>
+              <td class="cell-date muted">
+                {{ t.created_at | datetime }}
+              </td>
+              <td>
+                <a href="/tickets/{{ t.id }}" class="btn btn-secondary btn-sm">
+                  {% if t.suggestion and t.suggestion.review_status == 'pendente' %}Revisar{% else %}Ver Detalhes{% endif %}
+                </a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">📭</div>
+      <h3>Nenhum chamado encontrado</h3>
+      <p class="muted">Não há chamados com os filtros selecionados ou o banco ainda não possui registros.</p>
+      <div class="empty-actions">
+        <a href="/" class="btn btn-primary">Abrir Primeiro Chamado</a>
+      </div>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

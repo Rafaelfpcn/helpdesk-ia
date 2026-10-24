@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Abrir Novo Chamado de TI</h1>
+    <p class="subtitle">Descreva o problema para que a IA sugira triagem automática para nossa equipe de atendimento.</p>
+  </div>
+</div>
+
+<div class="grid-layout">
+  <div class="card form-card">
+    <form id="newTicketForm" onsubmit="handleCreateTicket(event)">
+      <div class="alert alert-info">
+        🔒 <strong>Aviso de Privacidade:</strong> Use apenas nomes e e-mails fictícios (ex.: <code>ana.teste@exemplo.com</code>). O sistema sanitiza automaticamente CPF, telefones e senhas antes do envio para o motor de IA.
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="requester_name">Nome do Solicitante *</label>
+          <input type="text" id="requester_name" name="requester_name" placeholder="Ex.: Ana Souza Teste" required minlength="2" maxlength="100">
+          <span class="help-text">Nome de demonstração (sugerido: terminar com "Teste").</span>
+        </div>
+
+        <div class="form-group">
+          <label for="requester_email">E-mail Corporativo Fictício *</label>
+          <input type="email" id="requester_email" name="requester_email" placeholder="usuario.teste@exemplo.com" required maxlength="150">
+          <span class="help-text">Utilize o domínio reservado <code>@exemplo.com</code>.</span>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="initial_category">Categoria Inicial Informada pelo Usuário</label>
+          <select id="initial_category" name="initial_category">
+            {% for cat in categories %}
+              <option value="{{ cat.value }}" {% if cat.value == 'outros' %}selected{% endif %}>
+                {{ cat.value | label }}
+              </option>
+            {% endfor %}
+          </select>
+          <span class="help-text">A IA reavaliará a categoria com base no relato detalhado.</span>
+        </div>
+
+        <div class="form-group">
+          <label for="title">Título do Chamado *</label>
+          <input type="text" id="title" name="title" placeholder="Ex.: VPN corporativa não conecta no notebook" required minlength="5" maxlength="120">
+          <span class="help-text">Resuma o sintoma principal em poucas palavras.</span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="description">Descrição Detalhada do Problema *</label>
+        <textarea id="description" name="description" rows="5" placeholder="Descreva o que ocorreu, mensagens de erro e equipamentos envolvidos..." required minlength="10" maxlength="2000"></textarea>
+        <span class="help-text">Mínimo de 10 caracteres. A IA analisará este texto para estimar urgência e ação inicial.</span>
+      </div>
+
+      <div id="formFeedback" class="feedback-area" style="display: none;"></div>
+
+      <div class="form-actions">
+        <button type="submit" id="submitBtn" class="btn btn-primary">
+          <span class="btn-text">🚀 Enviar Chamado & Analisar com IA</span>
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <aside class="sidebar-guide">
+    <div class="card info-card">
+      <h3>🤖 Como funciona a Triagem IA</h3>
+      <ol class="step-list">
+        <li><strong>Validação:</strong> Os dados de entrada são checados estritamente pelo Pydantic.</li>
+        <li><strong>Sanitização LGPD:</strong> Expressões sensíveis (CPF, cartões, senhas) são mascaradas preventivamente.</li>
+        <li><strong>Análise Semântica:</strong> A IA infere categoria recomendada, urgência, resumo executivo e sugestão de ação de suporte.</li>
+        <li><strong>Revisão Humana:</strong> A classificação oficial só é confirmada ou ajustada após validação de um atendente.</li>
+      </ol>
+    </div>
+
+    <div class="card test-tip-card">
+      <h4>💡 Exemplos rápidos para testar:</h4>
+      <p class="muted">Clique para preencher automaticamente com exemplos:</p>
+      <div class="button-group-vertical">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="fillExample('rede')">📡 Testar Problema de Rede</button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="fillExample('seguranca')">🛡️ Testar Incidente de Segurança</button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="fillExample('senha')">🔑 Testar Acesso/Senha com Dado Sensível</button>
+      </div>
+    </div>
+  </aside>
+</div>
+{% endblock %}
