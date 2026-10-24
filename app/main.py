@@ -1,88 +1,52 @@
-import logging
-import time
-import uuid
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from app import models  # noqa: F401
-from app.api.auth import router as auth_router
-from app.api.routes import router
-from app.core.config import settings
-from app.core.logging import setup_logging
-from app.db.base import Base, engine
+from app import models  # noqa: F401 (registra todas as tabelas no SQLAlchemy)
+from app.config import settings
+from app.database import Base, engine
+from app.errors import AppError
+from app.routers import metrics, pages, reviews, tickets
+
+STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Cria as tabelas na inicialização se ainda não existirem.
     Base.metadata.create_all(bind=engine)
     yield
 
 
 app = FastAPI(
     title=settings.app_name,
-    version="0.6.0",
-    description=(
-        "Sistema de abertura, triagem e análise de chamados de TI "
-        "com apoio de Inteligência Artificial. "
-        "Projeto educacional para portfólio com foco em IA responsável."
-    ),
+    description="Triagem inteligente de chamados de TI com apoio de IA e supervisão humana obrigatória.",
+    version="0.1.0",
     lifespan=lifespan,
 )
 
-origins = [
-    origin.strip()
-    for origin in settings.allowed_origins.split(",")
-    if origin.strip()
-]
+# Servir arquivos estáticos (CSS e JS)
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-app.include_router(router)
-app.include_router(auth_router)
-
-app.mount(
-    "/static",
-    StaticFiles(directory="app/static"),
-    name="static",
-)
-
-setup_logging()
-
-logger = logging.getLogger("helpdesk_ai")
-
-
-@app.middleware("http")
-async def request_context_middleware(request: Request, call_next):
-    request_id = str(uuid.uuid4())
-    start = time.perf_counter()
-
-    response = await call_next(request)
-
-    duration_ms = int((time.perf_counter() - start) * 1000)
-
-    logger.info(
-        f"request_id={request_id} "
-        f"method={request.method} "
-        f"path={request.url.path} "
-        f"status_code={response.status_code} "
-        f"duration_ms={duration_ms}"
+# Tratamento padronizado de exceções de negócio
+@app.exception_handler(AppError)
+async def app_error_handler(request: Request, exc: AppError):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error": {"code": exc.code, "message": exc.message}},
     )
 
-    response.headers["X-Request-ID"] = request_id
 
-    return response
+# Inclusão dos roteadores da API e das páginas web
+app.include_router(tickets.router)
+app.include_router(reviews.router)
+app.include_router(metrics.router)
+app.include_router(pages.router)
 
 
-@app.get("/", include_in_schema=False)
-def root():
-    return RedirectResponse(url="/static/index.html")
+@app.get("/health", tags=["infra"])
+def health():
+    return {"status": "ok"}

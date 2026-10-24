@@ -1,7 +1,7 @@
-.PHONY: install run test lint seed evaluate up down clean
+.PHONY: install run test coverage lint seed evaluate benchmark up down clean
 
 install:
-	pip install -r requirements.txt
+	pip install -r requirements.txt -r requirements-dev.txt
 
 run:
 	uvicorn app.main:app --reload
@@ -9,14 +9,20 @@ run:
 test:
 	pytest -v
 
+coverage:
+	pytest -v --cov=app --cov-report=term-missing
+
 lint:
 	ruff check .
 
 seed:
 	python scripts/seed.py
 
+benchmark:
+	python scripts/benchmark.py
+
 evaluate:
-	python scripts/evaluate_ai.py
+	python scripts/benchmark.py
 
 up:
 	docker compose up --build

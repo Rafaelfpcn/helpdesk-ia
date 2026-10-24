@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Dashboard de Métricas & Impacto</h1>
+    <p class="subtitle">Monitoramento em tempo real da operação de suporte, desempenho do modelo de IA e governança.</p>
+  </div>
+  <a href="/tickets" class="btn btn-secondary">Ver Chamados</a>
+</div>
+
+<!-- Cards de Indicadores Principais -->
+<div class="stats-overview-grid">
+  <div class="stat-card">
+    <span class="stat-number">{{ metrics.total_tickets }}</span>
+    <span class="stat-title">Total de Chamados</span>
+    <span class="stat-desc">Registrados no sistema</span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-number stat-highlight-warning">{{ metrics.backlog_count }}</span>
+    <span class="stat-title">Backlog em Aberto</span>
+    <span class="stat-desc">Aberto + Em atendimento</span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-number stat-highlight-success">{{ metrics.resolution_rate | pct }}</span>
+    <span class="stat-title">Taxa de Resolução</span>
+    <span class="stat-desc">Resolvidos ou fechados</span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-number">{{ metrics.avg_resolution_hours | hours }}</span>
+    <span class="stat-title">Tempo Médio de Resolução</span>
+    <span class="stat-desc">Desde abertura até resolução</span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-number">{{ metrics.avg_open_hours | hours }}</span>
+    <span class="stat-title">Idade Média do Backlog</span>
+    <span class="stat-desc">Chamados ainda não resolvidos</span>
+  </div>
+</div>
+
+<!-- Card de Estimativa de Impacto de Negócio -->
+<section id="impacto" class="card impact-card">
+  <div class="impact-content">
+    <div class="impact-icon">⏱️</div>
+    <div class="impact-text">
+      <h2>Impacto Operacional Estimado</h2>
+      <p class="impact-highlight">
+        <strong>{{ (metrics.impact.estimated_minutes_saved / 60) | hours }}</strong> economizadas na triagem
+        <span class="muted font-sm">(estimativa conservadora)</span>
+      </p>
+      <p class="muted font-sm">
+        <strong>Premissas adotadas:</strong> Triagem manual de {{ metrics.impact.assumptions.manual_triage_minutes }} min e revisão assistida de {{ metrics.impact.assumptions.review_minutes }} min por chamado; considera <em>{{ metrics.impact.assumptions.counted_tickets }}</em>.
+        Parâmetros configuráveis via variáveis de ambiente no <code>.env</code>.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- Gráficos de Distribuição (Barras de Progresso CSS) -->
+<div class="grid-3">
+  <!-- Por Status -->
+  <div class="card">
+    <h3>Distribuição por Status</h3>
+    <div class="bars-list">
+      {% for key, val in metrics.by_status.items() %}
+        {% set ratio = (val / metrics.total_tickets * 100) if metrics.total_tickets else 0 %}
+        <div class="bar-item">
+          <div class="bar-header">
+            <span>{{ key | label }}</span>
+            <strong>{{ val }} ({{ (val / metrics.total_tickets) | pct if metrics.total_tickets else '0%' }})</strong>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill progress-fill-status-{{ key }}" style="width: {{ ratio }}%;"></div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Por Prioridade -->
+  <div class="card">
+    <h3>Distribuição por Prioridade</h3>
+    <div class="bars-list">
+      {% for key, val in metrics.by_priority.items() %}
+        {% set ratio = (val / metrics.total_tickets * 100) if metrics.total_tickets else 0 %}
+        <div class="bar-item">
+          <div class="bar-header">
+            <span>{{ key | label }}</span>
+            <strong>{{ val }} ({{ (val / metrics.total_tickets) | pct if metrics.total_tickets else '0%' }})</strong>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill progress-fill-priority-{{ key }}" style="width: {{ ratio }}%;"></div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Por Categoria -->
+  <div class="card">
+    <h3>Distribuição por Categoria</h3>
+    <div class="bars-list">
+      {% for key, val in metrics.by_category.items() %}
+        {% set ratio = (val / metrics.total_tickets * 100) if metrics.total_tickets else 0 %}
+        <div class="bar-item">
+          <div class="bar-header">
+            <span>{{ key | label }}</span>
+            <strong>{{ val }} ({{ (val / metrics.total_tickets) | pct if metrics.total_tickets else '0%' }})</strong>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill progress-fill-category" style="width: {{ ratio }}%;"></div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Métricas de Governança e Qualidade da IA -->
+<div class="grid-2">
+  <div class="card">
+    <h3>🤖 Qualidade das Sugestões da IA</h3>
+    <p class="muted font-sm">Métricas de precisão comparando sugestão original da IA com o veredito humano.</p>
+    <dl class="meta-dl">
+      <dt>Cobertura de Triagem Automática:</dt>
+      <dd><strong>{{ metrics.ai.triage_coverage | pct }}</strong> ({{ metrics.ai.suggestions_total }} de {{ metrics.total_tickets }} chamados)</dd>
+
+      <dt>Chamados Revisados por Humanos:</dt>
+      <dd>{{ metrics.ai.reviewed_count }} ({{ metrics.ai.pending_count }} pendentes)</dd>
+
+      <dt>Taxa de Confirmação Humana:</dt>
+      <dd><strong>{{ metrics.ai.confirmation_rate | pct }}</strong> ({{ metrics.ai.confirmed_count }} confirmadas, {{ metrics.ai.changed_count }} alteradas)</dd>
+
+      <dt>Acurácia de Categoria:</dt>
+      <dd>{{ metrics.ai.category_accuracy | pct }}</dd>
+
+      <dt>Acurácia de Prioridade:</dt>
+      <dd>{{ metrics.ai.priority_accuracy | pct }}</dd>
+
+      <dt>Confiança Média Declarada:</dt>
+      <dd>{{ metrics.ai.avg_confidence | pct }}</dd>
+
+      <dt>Confiança Média (Confirmadas):</dt>
+      <dd>{{ metrics.ai.avg_confidence_confirmed | pct }}</dd>
+
+      <dt>Confiança Média (Alteradas):</dt>
+      <dd>{{ metrics.ai.avg_confidence_changed | pct }}</dd>
+
+      <dt>Taxa de Falhas da IA:</dt>
+      <dd>{{ metrics.ai.failure_count }} ({{ metrics.ai.failure_rate | pct }})</dd>
+    </dl>
+  </div>
+
+  <div class="card">
+    <h3>🔍 Onde a IA mais errou (Categorias)</h3>
+    <p class="muted font-sm">Identificação de confusões semânticas para retreinamento ou aprimoramento de prompts/regras.</p>
+    {% if metrics.ai.top_corrections %}
+      <div class="table-responsive">
+        <table class="table table-sm">
+          <thead>
+            <tr>
+              <th>Sugerido pela IA</th>
+              <th>→</th>
+              <th>Decisão do Humano</th>
+              <th>Ocorrências</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in metrics.ai.top_corrections %}
+              <tr>
+                <td><span class="badge badge-subtle">{{ c.suggested | label }}</span></td>
+                <td>→</td>
+                <td><span class="badge badge-category">{{ c.final | label }}</span></td>
+                <td><strong>{{ c.count }} {{ 'vez' if c.count == 1 else 'vezes' }}</strong></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state-sm">
+        <p class="muted">Nenhuma correção de categoria registrada até o momento.</p>
+      </div>
+    {% endif %}
+
+    <div class="responsible-ai-note alert alert-info">
+      🛡️ <strong>Nota de Calibração:</strong> A confiança informada pelo motor é baseada em evidências lexicais. A concordância humana supervisionada impede que alucinações ou falsos positivos gerem impacto no SLA.
+    </div>
+  </div>
+</div>
+{% endblock %}

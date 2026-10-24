@@ -1,190 +1,223 @@
-# HelpDesk IA 🎫🤖
+# HelpDesk IA
 
-> Sistema profissional de abertura, triagem e análise de chamados de TI com apoio de Inteligência Artificial responsável.
+![tests](https://github.com/SEU_USUARIO/helpdesk-ia/actions/workflows/tests.yml/badge.svg)
+![Python](https://img.shields.io/badge/python-3.11%2B-blue)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688)
+![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.0-red)
+![License](https://img.shields.io/badge/license-MIT-green)
 
-![CI](https://github.com/Rafaelfpcn/helpdesk-ia/actions/workflows/ci.yml/badge.svg)
-![Python Version](https://img.shields.io/badge/python-3.11+-blue.svg)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
+Sistema de **abertura e triagem de chamados de TI com apoio de Inteligência Artificial e supervisão humana obrigatória (*Human-in-the-Loop*)**.
 
----
+A IA analisa relatos em linguagem natural, sanitiza dados sensíveis e sugere categoria, prioridade, resumo e ação inicial de suporte — **o atendente técnico humano sempre revisa, confirma ou corrige a decisão**.
 
-## 🎯 Proposta de Valor & Problema Real de TI
-
-Em centrais de serviços de TI (Service Desk / Help Desk), a triagem inicial de chamados costuma ser um gargalo operacional:
-- Chamados são abertos com descrições vagas ou categorias incorretas.
-- Incidentes de alta prioridade ficam parados na mesma fila que solicitações rotineiras.
-- Atendentes perdem tempo classificando chamados manualmente em vez de resolver incidentes.
-
-O **HelpDesk IA** automatiza a triagem inicial analisando o texto do chamado em tempo real para inferir categoria, prioridade, resumo estruturado e ação recomendada, operando com **auditoria e supervisão humana obrigatória**.
+> ⚠️ **Projeto de Portfólio Acadêmico e Técnico:** Todos os dados utilizados são 100% sintéticos e fictícios (nomes "…Teste", e-mails `@exemplo.com`). Não utilize dados reais. A IA padrão incluída opera via motor determinístico simulado (mock heurístico), demonstrando arquitetura desacoplada pronta para integração com LLMs reais (OpenAI, Gemini ou Ollama).
 
 ---
 
-## ✨ Destaques de Engenharia e IA Responsável
+## 📌 Problema que Resolve
 
-- **Human-in-the-Loop:** A IA não fecha nem resolve chamados sozinha. Toda sugestão pode ser aceita ou corrigida por um atendente.
-- **Decisão baseada em confiança (Threshold):** Se a confiança for alta ($\ge 0.70$), o chamado é auto-preenchido. Se a confiança for baixa, aplica fallback seguro e requer revisão manual.
-- **Tolerância a falhas:** Caso o serviço de IA falhe, o sistema não quebra: aplica fallback gracioso e registra a ocorrência.
-- **Privacidade & Sanitização (LGPD):** Regex sanitiza CPFs, telefones e e-mails antes de enviar à camada de inteligência.
-- **Auditoria completa:** Trilha de auditoria persistente de cada predição, tempo de resposta (latência) e correções humanas.
-- **Avaliação com Dataset Sintético:** Script automatizado (`scripts/evaluate_ai.py`) para medir acurácia de classificação.
-- **Autenticação JWT Opcional:** Suporte a login e proteção de rotas, configurável via flag `AUTH_REQUIRED=false` (ideal para recrutadores testarem instantaneamente).
+Em centros de serviços e equipes de suporte de TI, os chamados chegam em texto livre e frequentemente com dados sensíveis (senhas, CPFs, e-mails). A triagem manual consome tempo excessivo da equipe, a priorização varia conforme o humor ou experiência de cada atendente e a governança é difícil de auditar.
 
----
+Por outro lado, adotar IA autônoma sem controle introduz sérios riscos:
+- Vazamento de dados confidenciais (LGPD) para APIs de terceiros;
+- Decisões automáticas incorretas que fecham ou despriorizam incidentes graves (alucinações);
+- Perda de rastreabilidade para auditorias corporativas.
 
-## 📸 Telas do Sistema
-
-### Dashboard com Métricas de IA e Atendimento
-![Dashboard](docs/screenshots/dashboard.png)
-
-### Gestão e Listagem de Chamados
-![Chamados](docs/screenshots/chamados.png)
-
-### Detalhes do Chamado & Auditoria de IA (Human-in-the-Loop)
-![Detalhes do Chamado](docs/screenshots/ticket_detail.png)
-
-### Abertura de Novo Chamado
-![Novo Chamado](docs/screenshots/novo_chamado.png)
+O **HelpDesk IA** implementa um fluxo equilibrado: **agilizar a triagem preliminar com IA, garantir anonimização de dados pré-processamento, manter o ser humano no comando e auditar continuamente a acurácia do modelo**.
 
 ---
 
-## 🛠️ Tecnologias Utilizadas
+## ✨ Funcionalidades Principais
 
-| Componente | Tecnologia | Finalidade |
-|---|---|---|
-| **Backend** | Python 3.11+, FastAPI | API REST moderna de alta performance com OpenAPI/Swagger |
-| **Validação** | Pydantic v2 | Modelagem e validação estrita de tipos |
-| **Persistência** | SQLAlchemy ORM, SQLite | Camada de abstração de dados relacional |
-| **Segurança** | PyJWT, PBKDF2-HMAC-SHA256 | Autenticação segura por token JWT e hashing com salt |
-| **Frontend** | HTML5, CSS3, JavaScript Puro | Painel responsivo sem complexidade de bundles |
-| **Qualidade & Testes** | Pytest, HTTPX, Ruff | Testes automatizados e linter de código moderno |
-| **DevOps** | Docker, Docker Compose, GitHub Actions | Conteinerização completa e CI/CD automatizado |
+- **Abertura de Chamados com Validação:** Formulário web e endpoint REST com validações rigorosas (Pydantic v2).
+- **Sanitização Automática de Dados Sensíveis:** Mascaramento pré-IA de CPFs, CNPJs, cartões de crédito, e-mails, telefones e senhas.
+- **Triagem Assistida por IA:** Inferência de categoria recomendada, urgência, prioridade, resumo executivo e sugestão de ação de suporte.
+- **Supervisão Humana Obrigatória (*Human-in-the-Loop*):** Rotas e telas dedicadas para confirmar a sugestão ou aplicar correção manual.
+- **Auditoria Imutável:** Rastreamento ponta a ponta (`audit_logs`) com registro de ator (`system`, `ai`, `atendente`), data/hora e metadados.
+- **Máquina de Estados de Chamados:** Ciclo de vida controlado (`aberto` → `em_atendimento` → `resolvido` → `fechado`).
+- **Dashboard Operacional e de Governança:** Painel com indicadores em tempo real, acurácia da IA, matriz de confusões semânticas e estimativa de impacto financeiro/operacional.
+- **Documentação e API Interativa:** Documentação OpenAPI/Swagger nativa em `/docs`.
 
 ---
 
-## 🚀 Como Executar Localmente
+## 📸 Telas do Sistema (Prints)
 
-### Pré-requisitos
-- Python 3.11+ instalado
-- Git
+> *Para capturar e salvar seus prints, execute o seed localmente e armazene as imagens em `docs/images/`.*
 
-### 1. Clonar o repositório
+| Abertura de Chamado | Central de Chamados & Filtros |
+|:---:|:---:|
+| ![Abrir chamado](docs/images/01-abrir-chamado.png) | ![Lista de chamados](docs/images/02-lista.png) |
+| **Triagem & Revisão Humana de IA** | **Dashboard de Métricas & Impacto** |
+| ![Detalhe e Revisão](docs/images/03-detalhe-revisao-ia.png) | ![Dashboard de Métricas](docs/images/04-dashboard.png) |
+
+---
+
+## 🏛️ Arquitetura do Sistema
+
+O projeto adota uma arquitetura em camadas orientada a serviços com baixo acoplamento:
+
+```
+Navegador (Jinja2 + JS) ──> Routers (/api/* e páginas) ──> Services (Regras de Negócio) ──> SQLite (SQLAlchemy)
+                                                               │
+                                                               └──> Sanitizer ──> AIProvider (Mock | LLM)
+```
+
+- **Inversão de Controle & Interface de IA:** O sistema depende apenas do contrato abstrato `AIProvider`. A substituição do mock por um modelo real é feita apenas alterando a variável `AI_PROVIDER` no `.env`.
+- **Persistência Atômica:** Chamado, parecer da IA e registros de log são commitados na mesma transação atômica.
+- **Isolamento de Decisão:** Colunas `suggested_*` e `final_*` são mantidas separadamente na tabela `ai_suggestions`, viabilizando o cálculo de métricas de acerto e calibração de confiança.
+
+Detalhes completos e diagramas de sequência: [docs/architecture.md](docs/architecture.md) • Contratos da API: [docs/api.md](docs/api.md).
+
+---
+
+## 🛠️ Stack Tecnológica
+
+- **Backend:** Python 3.11+, FastAPI, Pydantic v2, Pydantic-Settings
+- **Banco de Dados & ORM:** SQLite 3, SQLAlchemy 2.0
+- **Frontend:** Jinja2 Templates, HTML5 Semântico, CSS3 Moderno (sem frameworks externos pesados), JavaScript Vanilla
+- **Testes & Cobertura:** Pytest, HTTPX, Pytest-Cov
+- **Containerização:** Docker, Docker Compose
+- **CI/CD:** GitHub Actions (Ubuntu, Python 3.11 & 3.12)
+
+---
+
+## 🚀 Como Rodar o Projeto Localmente
+
+### Pré-requisitos:
+- Python 3.11 ou superior instalado.
+
+### 1. Clonar o repositório e preparar o ambiente virtual:
 ```bash
-git clone https://github.com/Rafaelfpcn/helpdesk-ia.git
+git clone https://github.com/SEU_USUARIO/helpdesk-ia.git
 cd helpdesk-ia
-```
 
-### 2. Criar e ativar o ambiente virtual
-```bash
-# Linux/macOS
+# Criar e ativar ambiente virtual
 python -m venv .venv
-source .venv/bin/activate
 
-# Windows (PowerShell)
-python -m venv .venv
+# No Windows (PowerShell):
 .venv\Scripts\activate
+# No Linux / macOS:
+# source .venv/bin/activate
+
+# Instalar dependências completas (com ferramentas de desenvolvimento e testes)
+pip install -r requirements-dev.txt
 ```
 
-### 3. Instalar dependências
+### 2. Configurar variáveis de ambiente:
 ```bash
-pip install -r requirements.txt
-```
-
-### 4. Configurar variáveis de ambiente
-```bash
-# Linux/macOS
-cp .env.example .env
-
-# Windows
+# Windows:
 copy .env.example .env
+# Linux / macOS:
+# cp .env.example .env
 ```
 
-### 5. Popular o banco com dados de demonstração
+### 3. Popular o banco com dados sintéticos de demonstração:
 ```bash
-python scripts/seed.py --reset
+python -m scripts.seed --reset
 ```
-*Gera 12 chamados realistas com predições de IA, revisões simuladas e cria o usuário demo (`demo@example.com` / `demo123`).*
+*Gera 30 chamados fictícios com histórico retroativo realista para preencher o dashboard e os gráficos.*
 
-### 6. Iniciar a aplicação
+### 4. Executar o servidor de desenvolvimento:
 ```bash
 uvicorn app.main:app --reload
 ```
 
 Acesse no navegador:
-- **Interface Web:** [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
-- **Swagger / OpenAPI:** [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-- **Health Check:** [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health)
-- **Métricas:** [http://127.0.0.1:8000/metrics](http://127.0.0.1:8000/metrics)
+- **Aplicação Web:** [http://127.0.0.1:8000](http://127.0.0.1:8000)
+- **Central de Chamados:** [http://127.0.0.1:8000/tickets](http://127.0.0.1:8000/tickets)
+- **Dashboard de Métricas:** [http://127.0.0.1:8000/dashboard](http://127.0.0.1:8000/dashboard)
+- **Documentação Swagger (API):** [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 
 ---
 
-## 🐳 Executando com Docker
+## 🐳 Como Rodar com Docker
 
 ```bash
-docker compose up --build
+# Construir e iniciar os containers com volume persistente
+docker compose up --build -d
+
+# Popular com dados de demonstração dentro do container
+docker compose exec web python -m scripts.seed --reset
 ```
-Para popular os dados dentro do container:
-```bash
-docker compose exec api python scripts/seed.py
-```
+Acesse a aplicação em `http://localhost:8000`.
 
 ---
 
-## 🧪 Testes e Avaliação da IA
+## 🧪 Execução de Testes Automatizados
+
+A suíte de testes do projeto executa contra um banco SQLite em memória isolado (`poolclass=StaticPool`), garantindo testes determinísticos e rápidos sem poluir o banco local:
 
 ```bash
-# Executar todos os testes automatizados
+# Rodar todos os testes com relatório detalhado
 pytest -v
 
-# Executar avaliação do modelo no dataset sintético
-python scripts/evaluate_ai.py
-
-# Verificar formatação e boas práticas
-ruff check .
+# Rodar com análise de cobertura de código
+pytest -v --cov=app --cov-report=term-missing
 ```
+
+### O que os testes cobrem:
+- Criação e validação estrita de chamados (código 201 e 422).
+- Comportamento de falha segura quando o serviço de IA falha inesperadamente.
+- Classificação heurística do motor de IA mock e insensibilidade a acentos/caixa.
+- Sanitização ponta a ponta e mascaramento estrito de dados sensíveis.
+- Revisão humana: confirmação, alteração e rejeição de estados inválidos (código 409 e 422).
+- Consolidação de métricas, backlog, acurácia e estimativa de impacto.
+- Script de seed e geração de histórico.
 
 ---
 
-## 🔐 Autenticação
+## 📊 Métricas e Impacto Medido
 
-O sistema possui autenticação JWT opcional:
-- Por padrão, `AUTH_REQUIRED=false` no `.env`, permitindo uso direto da interface sem login obrigatório.
-- Para ativar proteção estrita em produção, altere no `.env`:
-  ```env
-  AUTH_REQUIRED=true
-  ```
-- **Credenciais demo:** `demo@example.com` | `demo123`
+O HelpDesk IA rejeita estimativas vazias e adota um protocolo formal de medição documentado em [docs/metrics.md](docs/metrics.md).
+
+### Resultados Obtidos na Demonstração Controlada (`seed` reprodutivo):
+
+| Indicador | Valor Demonstrado | Descrição |
+|---|:---:|---|
+| **Chamados no Sistema** | `30` | Volume total de chamados gerados sinteticamente |
+| **Cobertura de Triagem IA** | `100%` (30/30) | Percentual de chamados atendidos pelo motor de IA |
+| **Taxa de Confirmação Humana** | `58,3%` (14/24) | Percentual de análises em que o humano manteve a sugestão |
+| **Acurácia em Categoria** | `58,3%` (14/24) | Direcionamento preciso para a fila técnica correspondente |
+| **Acurácia em Prioridade** | `83,3%` (20/24) | Avaliação correta de criticidade e urgência |
+| **Tempo Médio de Resolução (MTTR)** | `52,6 h` | Tempo médio decorrido nos chamados resolvidos |
+| **Tempo Estimado Economizado** | `56,0 min (~0,9 h)` | Economia conservadora computada sobre chamados confirmados |
+
+> **Premissas da Estimativa de Tempo:** 5,0 minutos para triagem manual sem IA e 1,0 minuto para revisão assistida (medianas obtidas em amostragem cronometrada), computadas **apenas para chamados com sugestão confirmada**.
+
+### Indicadores Técnicos de Confiabilidade:
+
+| Indicador | Valor Medido | Observações |
+|---|:---:|---|
+| **Testes Automatizados** | `41 aprovados` | Suíte com Pytest cobrindo unitários, integração e E2E |
+| **Cobertura de Código** | `98%` | Medido via `pytest-cov` sobre todo o pacote `app/` |
+| **Latência `POST /api/tickets`** | `p50: 24,8 ms / p95: 28,0 ms` | Inclui validação Pydantic, sanitização regex e mock de IA |
+| **Latência `GET /api/metrics`** | `p50: 19,5 ms / p95: 23,0 ms` | Agregações SQL e processamento estatístico em tempo real |
 
 ---
 
-## 📂 Estrutura do Projeto
+## 🛡️ Diretrizes de IA Responsável
 
-```text
-helpdesk-ia/
-├── app/
-│   ├── api/             # Rotas REST e autenticação
-│   ├── core/            # Configurações Pydantic e Logging
-│   ├── db/              # Conexão e Sessão SQLAlchemy
-│   ├── services/        # Regras de Negócio, Camada de IA e Segurança
-│   ├── static/          # Frontend web (HTML, CSS, JS)
-│   ├── models.py        # Modelos ORM relacionais
-│   ├── schemas.py       # Schemas Pydantic de entrada/saída
-│   └── main.py          # Ponto de entrada FastAPI
-├── data/
-│   └── eval_dataset.json # Dataset de benchmark para IA
-├── docs/                # Documentação técnica e arquitetura
-├── scripts/             # Scripts de seed e avaliação
-├── tests/               # Testes unitários e de integração
-├── .env.example
-├── Dockerfile
-├── docker-compose.yml
-├── Makefile
-├── requirements.txt
-└── README.md
-```
+O projeto foi concebido sob princípios de computação ética e conformidade com a LGPD:
+1. **Transparência e Explicabilidade:** O solicitante e o atendente são informados de que o parecer é gerado por IA com limites operacionais explícitos.
+2. **Minimização de Dados:** Remoção proativa de dados identificáveis antes de alimentar o motor cognitivo.
+3. **Imutabilidade de Auditoria:** O registro histórico não permite apagar falhas de modelo nem decisões humanas tomadas.
+4. **Prevenção de Viés:** Monitoramento explícito de confusões frequentes de categoria para evitar que determinados chamados fiquem negligenciados.
+
+Leia a política completa em: [docs/ai-responsible.md](docs/ai-responsible.md).
+
+---
+
+## 🗺️ Roadmap de Evoluções Futuras
+
+- [ ] Autenticação baseada em JWT e controle de papéis (usuário vs. atendente).
+- [ ] Integração com LLMs reais (OpenAI GPT-4o-mini / Google Gemini Flash / Ollama local).
+- [ ] Paginação e busca textual avançada na listagem de chamados.
+- [ ] Migração orientada para PostgreSQL com versionamento de schema via Alembic.
+- [ ] Gestão de SLA por criticidade com alertas visuais de prazo expirando.
+- [ ] Pipeline CI/CD completo com deploy automático em ambiente de nuvem (ex.: Render ou Railway).
 
 ---
 
 ## 📄 Licença
 
-Distribuído sob a licença MIT. Veja `LICENSE` para mais informações.
+Distribuído sob a licença **MIT**. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
